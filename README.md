@@ -2,6 +2,10 @@
 
 Sync Notion pages and databases into Markdown files in your repository. Create a `.notion.txt` file with a list of Notion links in any directory to get a Markdown file in the same directory. Perfect for making it easy for agents to have relevant docs for any company that lives in Notion. No MCP setup, they just become files. 
 
+
+## TODO
+- [ ] Make links within exported pages link to the new md local md files and not their original notion page
+
 ## What it does
 
 - Scans for `.notion.txt` manifest files in your repo
