@@ -221,7 +221,7 @@ async function writePageMarkdown({
     existingById.set(page.id, targetPath);
   }
 
-  const payload = `${markdown}\n\n---\n${frontmatterFromMeta(meta)}`;
+  const payload = `${frontmatterFromMeta(meta)}\n---\n${markdown}`;
   await fs.writeFile(targetPath, payload, "utf8");
   return targetPath;
 }
