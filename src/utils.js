@@ -236,6 +236,27 @@ function rewriteMarkdownLinks(markdown, notionFiles, currentFile) {
   }
 
   const notionUrlRegex = /(https?:\/\/(?:www\.)?(?:app\.)?notion(?:\.so|\.com)[^\s)<>]+)/gi;
+  const lookup = new Map();
+
+  for (const [key, targetPath] of notionFiles.entries()) {
+    const candidates = new Set();
+    candidates.add(String(key));
+
+    const normalizedId = normalizeNotionId(key) || extractNotionId(key);
+    if (normalizedId) {
+      candidates.add(normalizedId);
+      candidates.add(normalizedId.replace(/-/g, ""));
+      candidates.add(normalizedId.toLowerCase());
+      candidates.add(normalizedId.toLowerCase().replace(/-/g, ""));
+    }
+
+    for (const candidate of candidates) {
+      if (!candidate) {
+        continue;
+      }
+      lookup.set(candidate.toLowerCase(), targetPath);
+    }
+  }
 
   return markdown.replace(notionUrlRegex, (url) => {
     const notionId = extractNotionId(url);
@@ -244,14 +265,17 @@ function rewriteMarkdownLinks(markdown, notionFiles, currentFile) {
     if (notionId) {
       candidateIds.add(notionId);
       candidateIds.add(notionId.replace(/-/g, ""));
+      candidateIds.add(notionId.toLowerCase());
+      candidateIds.add(notionId.toLowerCase().replace(/-/g, ""));
     }
 
-    const resolved = Array.from(candidateIds).find((candidate) => notionFiles.has(candidate));
+    const suffix = url.match(/([?#][^\s)<>]*)$/)?.[1] || "";
+    const resolved = Array.from(candidateIds).find((candidate) => lookup.has(candidate.toLowerCase()));
     if (!resolved) {
       return url;
     }
 
-    const targetPath = notionFiles.get(resolved);
+    const targetPath = lookup.get(resolved.toLowerCase());
     if (!targetPath) {
       return url;
     }
@@ -261,7 +285,8 @@ function rewriteMarkdownLinks(markdown, notionFiles, currentFile) {
       : path.relative(process.cwd(), targetPath);
 
     const normalized = referencePath.split(path.sep).join("/");
-    return normalized.startsWith(".") ? normalized : `./${normalized}`;
+    const repositoryPath = normalized.startsWith(".") ? normalized : `./${normalized}`;
+    return `${repositoryPath}${suffix}`;
   });
 }
 
