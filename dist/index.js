@@ -10421,6 +10421,7 @@ async function syncPageTree({
   sourceFile,
   sourceLine,
   sourceText,
+  pagePaths,
 }) {
   const page = await notionClient.getPageById(pageId);
   const markdown = markdownFromBlocks(n2m, blocks);
@@ -10438,6 +10439,7 @@ async function syncPageTree({
   });
 
   existingById.set(page.id, writtenPath);
+  pagePaths.set(page.id, writtenPath);
   usedNames.add(node_path__WEBPACK_IMPORTED_MODULE_1__.basename(writtenPath).replace(/\.md$/i, ""));
   stats.pages += 1;
   console.log(`Synced ${meta.title} -> ${writtenPath}`);
@@ -10466,6 +10468,7 @@ async function syncPageTree({
       sourceFile,
       sourceLine,
       sourceText,
+      pagePaths,
     });
     filesWritten.push(...childFiles);
   }
@@ -10483,6 +10486,7 @@ async function syncManifest(filePath, notionClient, inputs, stats) {
     },
   });
   const directoryState = new Map();
+  const pagePaths = new Map();
 
   const lines = await readManifest(filePath);
   const requested = [];
@@ -10550,8 +10554,13 @@ async function syncManifest(filePath, notionClient, inputs, stats) {
       sourceFile: target.sourceFile,
       sourceLine: target.sourceLine,
       sourceText: target.sourceText,
+      pagePaths,
     });
     filesWritten.push(...written);
+  }
+
+  for (const file of filesWritten) {
+    await (0,_utils_js__WEBPACK_IMPORTED_MODULE_5__/* .rewriteMarkdownFileLinks */ .X9)(file, pagePaths);
   }
 
   return {
@@ -10768,6 +10777,7 @@ class NotionSyncClient {
 /* harmony export */   NH: () => (/* binding */ listExistingNotionPagesInDir),
 /* harmony export */   SE: () => (/* binding */ writeOutput),
 /* harmony export */   SZ: () => (/* binding */ listNotionManifests),
+/* harmony export */   X9: () => (/* binding */ rewriteMarkdownFileLinks),
 /* harmony export */   Z1: () => (/* binding */ parseBooleanLike),
 /* harmony export */   lP: () => (/* binding */ deduplicateList),
 /* harmony export */   mo: () => (/* binding */ parseManifestLines),
@@ -10775,7 +10785,7 @@ class NotionSyncClient {
 /* harmony export */   qj: () => (/* binding */ extractNotionId),
 /* harmony export */   zh: () => (/* binding */ readEventFile)
 /* harmony export */ });
-/* unused harmony exports boolFromInput, safeFileName, normalizeNotionId */
+/* unused harmony exports boolFromInput, safeFileName, normalizeNotionId, rewriteMarkdownLinks */
 /* harmony import */ var node_fs_promises__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(455);
 /* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(760);
 
@@ -11008,6 +11018,78 @@ function readEventFile() {
       return null;
     }
   });
+}
+ 
+function rewriteMarkdownLinks(markdown, notionFiles, currentFile) {
+  if (!markdown || !notionFiles || notionFiles.size === 0) {
+    return markdown;
+  }
+
+  const notionUrlRegex = /(https?:\/\/(?:www\.)?(?:app\.)?notion(?:\.so|\.com)[^\s)<>]+)/gi;
+  const lookup = new Map();
+
+  for (const [key, targetPath] of notionFiles.entries()) {
+    const candidates = new Set();
+    candidates.add(String(key));
+
+    const normalizedId = normalizeNotionId(key) || extractNotionId(key);
+    if (normalizedId) {
+      candidates.add(normalizedId);
+      candidates.add(normalizedId.replace(/-/g, ""));
+      candidates.add(normalizedId.toLowerCase());
+      candidates.add(normalizedId.toLowerCase().replace(/-/g, ""));
+    }
+
+    for (const candidate of candidates) {
+      if (!candidate) {
+        continue;
+      }
+      lookup.set(candidate.toLowerCase(), targetPath);
+    }
+  }
+
+  return markdown.replace(notionUrlRegex, (url) => {
+    const notionId = extractNotionId(url);
+    const candidateIds = new Set();
+
+    if (notionId) {
+      candidateIds.add(notionId);
+      candidateIds.add(notionId.replace(/-/g, ""));
+      candidateIds.add(notionId.toLowerCase());
+      candidateIds.add(notionId.toLowerCase().replace(/-/g, ""));
+    }
+
+    const suffix = url.match(/([?#][^\s)<>]*)$/)?.[1] || "";
+    const resolved = Array.from(candidateIds).find((candidate) => lookup.has(candidate.toLowerCase()));
+    if (!resolved) {
+      return url;
+    }
+
+    const targetPath = lookup.get(resolved.toLowerCase());
+    if (!targetPath) {
+      return url;
+    }
+
+    const referencePath = currentFile
+      ? node_path__WEBPACK_IMPORTED_MODULE_1__.relative(node_path__WEBPACK_IMPORTED_MODULE_1__.dirname(currentFile), targetPath)
+      : node_path__WEBPACK_IMPORTED_MODULE_1__.relative(process.cwd(), targetPath);
+
+    const normalized = referencePath.split(node_path__WEBPACK_IMPORTED_MODULE_1__.sep).join("/");
+    const repositoryPath = normalized.startsWith(".") ? normalized : `./${normalized}`;
+    return `${repositoryPath}${suffix}`;
+  });
+}
+
+async function rewriteMarkdownFileLinks(filePath, notionFiles) {
+  if (!filePath || !notionFiles || notionFiles.size === 0) {
+    return;
+  }
+
+  const content = await node_fs_promises__WEBPACK_IMPORTED_MODULE_0__.readFile(filePath, "utf8");
+  const rewritten = rewriteMarkdownLinks(content, notionFiles, filePath);
+  if (rewritten !== content) {
+    await node_fs_promises__WEBPACK_IMPORTED_MODULE_0__.writeFile(filePath, rewritten, "utf8");
+  }
 }
 
 
