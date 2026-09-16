@@ -4,7 +4,7 @@ Sync Notion pages and databases into Markdown files in your repository. Create a
 
 
 ## TODO
-- [ ] Make links within exported pages link to the new md local md files and not their original notion page
+- [x] Make links within exported pages link to the new md local md files and not their original notion page
 
 ## What it does
 

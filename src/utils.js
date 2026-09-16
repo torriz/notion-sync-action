@@ -229,6 +229,53 @@ function readEventFile() {
     }
   });
 }
+ 
+function rewriteMarkdownLinks(markdown, notionFiles, currentFile) {
+  if (!markdown || !notionFiles || notionFiles.size === 0) {
+    return markdown;
+  }
+
+  const notionUrlRegex = /(https?:\/\/(?:www\.)?(?:app\.)?notion(?:\.so|\.com)[^\s)<>]+)/gi;
+
+  return markdown.replace(notionUrlRegex, (url) => {
+    const notionId = extractNotionId(url);
+    const candidateIds = new Set();
+
+    if (notionId) {
+      candidateIds.add(notionId);
+      candidateIds.add(notionId.replace(/-/g, ""));
+    }
+
+    const resolved = Array.from(candidateIds).find((candidate) => notionFiles.has(candidate));
+    if (!resolved) {
+      return url;
+    }
+
+    const targetPath = notionFiles.get(resolved);
+    if (!targetPath) {
+      return url;
+    }
+
+    const referencePath = currentFile
+      ? path.relative(path.dirname(currentFile), targetPath)
+      : path.relative(process.cwd(), targetPath);
+
+    const normalized = referencePath.split(path.sep).join("/");
+    return normalized.startsWith(".") ? normalized : `./${normalized}`;
+  });
+}
+
+async function rewriteMarkdownFileLinks(filePath, notionFiles) {
+  if (!filePath || !notionFiles || notionFiles.size === 0) {
+    return;
+  }
+
+  const content = await fs.readFile(filePath, "utf8");
+  const rewritten = rewriteMarkdownLinks(content, notionFiles, filePath);
+  if (rewritten !== content) {
+    await fs.writeFile(filePath, rewritten, "utf8");
+  }
+}
 
 export {
   boolFromInput,
@@ -244,4 +291,6 @@ export {
   slugFromTitle,
   deduplicateList,
   readEventFile,
+  rewriteMarkdownLinks,
+  rewriteMarkdownFileLinks,
 };

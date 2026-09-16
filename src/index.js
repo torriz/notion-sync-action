@@ -13,6 +13,7 @@ import {
   deduplicateList,
   readEventFile,
   writeOutput,
+  rewriteMarkdownFileLinks,
 } from "./utils.js";
 import { NotionSyncClient } from "./notionClient.js";
 import {
@@ -236,6 +237,7 @@ async function syncPageTree({
   sourceFile,
   sourceLine,
   sourceText,
+  pagePaths,
 }) {
   const page = await notionClient.getPageById(pageId);
   const markdown = markdownFromBlocks(n2m, blocks);
@@ -253,6 +255,7 @@ async function syncPageTree({
   });
 
   existingById.set(page.id, writtenPath);
+  pagePaths.set(page.id, writtenPath);
   usedNames.add(path.basename(writtenPath).replace(/\.md$/i, ""));
   stats.pages += 1;
   console.log(`Synced ${meta.title} -> ${writtenPath}`);
@@ -281,6 +284,7 @@ async function syncPageTree({
       sourceFile,
       sourceLine,
       sourceText,
+      pagePaths,
     });
     filesWritten.push(...childFiles);
   }
@@ -298,6 +302,7 @@ async function syncManifest(filePath, notionClient, inputs, stats) {
     },
   });
   const directoryState = new Map();
+  const pagePaths = new Map();
 
   const lines = await readManifest(filePath);
   const requested = [];
@@ -365,8 +370,13 @@ async function syncManifest(filePath, notionClient, inputs, stats) {
       sourceFile: target.sourceFile,
       sourceLine: target.sourceLine,
       sourceText: target.sourceText,
+      pagePaths,
     });
     filesWritten.push(...written);
+  }
+
+  for (const file of filesWritten) {
+    await rewriteMarkdownFileLinks(file, pagePaths);
   }
 
   return {

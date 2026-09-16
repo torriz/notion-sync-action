@@ -10405,7 +10405,7 @@ async function writePageMarkdown({
     existingById.set(page.id, targetPath);
   }
 
-  const payload = `${frontmatterFromMeta(meta)}\n\n${markdown}`;
+  const payload = `${markdown}\n\n---\n${frontmatterFromMeta(meta)}`;
   await node_fs_promises__WEBPACK_IMPORTED_MODULE_0__.writeFile(targetPath, payload, "utf8");
   return targetPath;
 }
