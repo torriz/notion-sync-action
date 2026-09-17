@@ -4,6 +4,10 @@ function run(command) {
   return execSync(command, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 }
 
+function runRaw(command) {
+  return execSync(command, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+}
+
 function isRepoClean() {
   const status = run("git status --porcelain");
   return status.length === 0;
@@ -48,7 +52,7 @@ function push(refName) {
 }
 
 function listChangedFiles() {
-  const status = run("git status --porcelain");
+  const status = runRaw("git status --porcelain");
   return status
     .split(/\r?\n/)
     .map((line) => line.trimEnd())
