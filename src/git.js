@@ -51,7 +51,7 @@ function listChangedFiles() {
   const status = run("git status --porcelain");
   return status
     .split(/\r?\n/)
-    .map((line) => line.trim())
+    .map((line) => line.trimEnd())
     .filter(Boolean)
     .map((line) => {
       const entry = line.slice(3).trim();

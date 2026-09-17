@@ -10156,7 +10156,7 @@ function listChangedFiles() {
   const status = run("git status --porcelain");
   return status
     .split(/\r?\n/)
-    .map((line) => line.trim())
+    .map((line) => line.trimEnd())
     .filter(Boolean)
     .map((line) => {
       const entry = line.slice(3).trim();
@@ -10391,11 +10391,15 @@ async function writePageMarkdown({
   usedNames,
 }) {
   await node_fs_promises__WEBPACK_IMPORTED_MODULE_0__.mkdir(directory, { recursive: true });
+  const existingPath = existingById.get(page.id);
+  if (existingPath) {
+    usedNames.delete(node_path__WEBPACK_IMPORTED_MODULE_1__.basename(existingPath).replace(/\.md$/i, ""));
+  }
+
   const desiredBase = (0,_utils_js__WEBPACK_IMPORTED_MODULE_5__/* .slugFromTitle */ .GU)(meta.title || "notion-page");
   const targetBase = (0,_utils_js__WEBPACK_IMPORTED_MODULE_5__/* .uniqueSlug */ .nD)(desiredBase, usedNames);
   const targetPath = node_path__WEBPACK_IMPORTED_MODULE_1__.join(directory, `${targetBase}.md`);
 
-  const existingPath = existingById.get(page.id);
   if (existingPath && existingPath !== targetPath) {
     try {
       await node_fs_promises__WEBPACK_IMPORTED_MODULE_0__.rename(existingPath, targetPath);

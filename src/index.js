@@ -207,11 +207,15 @@ async function writePageMarkdown({
   usedNames,
 }) {
   await fs.mkdir(directory, { recursive: true });
+  const existingPath = existingById.get(page.id);
+  if (existingPath) {
+    usedNames.delete(path.basename(existingPath).replace(/\.md$/i, ""));
+  }
+
   const desiredBase = slugFromTitle(meta.title || "notion-page");
   const targetBase = uniqueSlug(desiredBase, usedNames);
   const targetPath = path.join(directory, `${targetBase}.md`);
 
-  const existingPath = existingById.get(page.id);
   if (existingPath && existingPath !== targetPath) {
     try {
       await fs.rename(existingPath, targetPath);
